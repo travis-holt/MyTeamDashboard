@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ExternalLink, RefreshCw } from "lucide-react";
 import type { Job, SyncRun, SyncStatus } from "../../../server/src/api/dto";
 import { api, message } from "../api";
+import { AttendancePreview } from "./AttendancePreview";
 import { Backups } from "./Backups";
 import { CheckSheetLink } from "./CheckSheetLink";
 import {
@@ -81,6 +82,7 @@ export function Settings({
       </Section>
       <Backups />
       <CheckSheetLink />
+      <AttendancePreview />
       <div className="source-cards">
         {data.sources.map((source) => {
           const status = data.jobs[source.job];

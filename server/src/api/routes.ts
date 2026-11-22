@@ -403,6 +403,18 @@ export function createRoutes(db: Db, config: Config, sync: SyncService) {
     };
     res.json(result);
   });
+  router.post("/sync/attendance-preview", (_req, res) => {
+    void sync.previewAttendance().then(
+      (report) => res.json(report),
+      (error: unknown) =>
+        res.status(422).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : "Attendance preview failed",
+        }),
+    );
+  });
   router.post("/sync", (req, res) => {
     const job = z.enum(["roster", "daily", "all"]).parse(req.query.job);
     if (!sync.start(job)) {

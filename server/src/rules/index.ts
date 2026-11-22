@@ -9,16 +9,17 @@ import { d5 } from "./d5.js";
 import { d6 } from "./d6.js";
 import { d7 } from "./d7.js";
 
+export function attendanceFindings(ctx: RuleContext) {
+  return [d1, d2, d3, d4].flatMap((rule) => rule(ctx));
+}
+
 export function runRules(db: Db, ctx: RuleContext, now: string) {
   const attendance = ctx.attendanceEnabled ? ctx.attendance : [];
   const context = { ...ctx, attendance };
-  const rules = [
-    ...(ctx.attendanceEnabled ? [d1, d2, d3, d4] : []),
-    d5,
-    d6,
-    d7,
+  const findings = [
+    ...(ctx.attendanceEnabled ? attendanceFindings(context) : []),
+    ...[d5, d6, d7].flatMap((rule) => rule(context)),
   ];
-  const findings = rules.flatMap((rule) => rule(context));
   const insert =
     db.prepare(`INSERT INTO discrepancies (id,code,date,rule_id,severity,missing,source,created_at,updated_at)
     VALUES (@id,@code,@date,@ruleId,@severity,@missing,@source,@now,@now)
