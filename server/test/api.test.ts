@@ -2,7 +2,7 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import bcrypt from "bcrypt";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   performanceStart,
   performanceToday,
@@ -18,16 +18,13 @@ let server: Server;
 let base: string;
 let cookie: string;
 const password = "fixture-api-password";
+const current = () => new Date(performanceToday + "T12:00:00Z");
+const clock = vi.fn(current);
 
 beforeAll(async () => {
   db = openDb(":memory:");
   const config = loadConfig();
-  const sync = createSync(
-    db,
-    config,
-    "fixture",
-    () => new Date(performanceToday + "T12:00:00Z"),
-  );
+  const sync = createSync(db, config, "fixture", clock);
   const app = createApp(
     {
       PORT: 3000,
@@ -133,6 +130,22 @@ describe("API request validation", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "body: Invalid JSON" });
   });
+});
+
+it("versions sync status by one Cairo date during a UTC-to-Cairo midnight crossing", async () => {
+  clock
+    .mockReturnValueOnce(new Date("2026-12-31T21:59:59Z"))
+    .mockReturnValue(new Date("2026-12-31T22:00:00Z"));
+  try {
+    const response = await request("GET", "/sync/status");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      date: "2026-12-31",
+      window: { from: "2026-11-26", to: "2027-01-14" },
+    });
+  } finally {
+    clock.mockReset().mockImplementation(current);
+  }
 });
 
 describe("generated 200-agent, 120-day fixture", () => {
