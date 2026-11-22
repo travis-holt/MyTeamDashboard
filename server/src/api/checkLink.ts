@@ -3,6 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import type { Config } from "../config.js";
 import { checkSheetLink, sourceKeys } from "../fetch/checkLink.js";
+import { endpoint } from "./request.js";
 import { parseLink } from "../fetch/urls.js";
 
 const body = z.strictObject({
@@ -35,11 +36,14 @@ export function checkLinkRoutes(config: Config) {
     legacyHeaders: false,
     message: { error: "Too many link checks. Try again in a minute." },
   });
-  router.post("/", limit, (req, res, next) => {
-    const input = body.parse(req.body);
-    void checkSheetLink(input, config)
-      .then((report) => res.json(report))
-      .catch(next);
-  });
+  router.post(
+    "/",
+    limit,
+    endpoint({ body }, ({ body: input }, _req, res, next) => {
+      void checkSheetLink(input, config)
+        .then((report) => res.json(report))
+        .catch(next);
+    }),
+  );
   return router;
 }
