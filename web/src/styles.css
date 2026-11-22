@@ -94,6 +94,11 @@ textarea {
   padding: 8px 10px;
   min-width: 0;
 }
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
 input[type="checkbox"] {
   accent-color: #0c8263;
   width: 15px;
