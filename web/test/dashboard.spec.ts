@@ -139,6 +139,11 @@ test("sign in, review views, add an agent note, and copy the email table", async
         headers.getByText(/Phone number|Email|Laptop Number|American Name/),
       ).toHaveCount(0);
 
+      await page.getByRole("button", { name: "Dry-run attendance" }).click();
+      await expect(
+        page.getByText("Records that would be stored"),
+      ).toBeVisible();
+      await expect(page.getByText("Sample statuses")).toBeVisible();
       const download = page.waitForEvent("download");
       await page.getByRole("link", { name: "Download backup" }).click();
       const backup = await download;

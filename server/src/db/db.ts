@@ -23,6 +23,17 @@ function migrateD5(db: Db) {
     DROP TABLE d5_migration;
   `);
 }
+export function openExistingDbReadOnly(directory: string): Db {
+  if (directory === ":memory:")
+    throw new Error(
+      "Use the DATA_DIR of an existing dashboard for the dry run",
+    );
+  return new Database(resolve(directory, "dashboard.db"), {
+    readonly: true,
+    fileMustExist: true,
+  });
+}
+
 export function openDb(directory: string): Db {
   if (directory !== ":memory:")
     mkdirSync(directory, { recursive: true, mode: 0o700 });

@@ -4,7 +4,7 @@ import { loadConfig } from "./config.js";
 import { readBackup, writeBackup } from "./backup/files.js";
 import { restoreBackup } from "./backup/data.js";
 import { readDataDir, readEnv } from "./env.js";
-import { openDb } from "./db/db.js";
+import { openDb, openExistingDbReadOnly } from "./db/db.js";
 import { checkSheetLink, sourceKeys } from "./fetch/checkLink.js";
 import { createSync } from "./sync/service.js";
 import { createInterface } from "node:readline/promises";
@@ -60,14 +60,27 @@ try {
     }
   } else if (process.argv[2] === "sync") {
     const job = process.argv[3]?.replace(/^--job=/, "");
-    if (job !== "roster" && job !== "daily" && job !== "all")
-      throw new Error("Pass --job=roster, --job=daily or --job=all");
+    const dryRun = process.argv.includes("--dry-run");
+    if (
+      dryRun
+        ? job !== "attendance"
+        : job !== "roster" && job !== "daily" && job !== "all"
+    )
+      throw new Error(
+        "Pass --job=roster, --job=daily, --job=all, or --job=attendance --dry-run",
+      );
     const env = readEnv();
     const config = loadConfig(undefined, env.SOURCE_MODE);
-    const db = openDb(env.DATA_DIR);
+    const db = dryRun
+      ? openExistingDbReadOnly(env.DATA_DIR)
+      : openDb(env.DATA_DIR);
     try {
-      if (!(await createSync(db, config, env.SOURCE_MODE).start(job)))
-        process.exitCode = 1;
+      const sync = createSync(db, config, env.SOURCE_MODE);
+      if (dryRun)
+        console.log(JSON.stringify(await sync.previewAttendance(), null, 2));
+      else if (job === "roster" || job === "daily" || job === "all") {
+        if (!(await sync.start(job))) process.exitCode = 1;
+      }
     } finally {
       db.close();
     }

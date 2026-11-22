@@ -24,6 +24,10 @@ export function parseAttendance(
   const dates = new Set<string>();
   const warnings: string[] = [];
   let matchedRows = 0;
+  let unmatchedTeamRows = 0;
+  let otherRows = 0;
+  let invalidDateRows = 0;
+  let dataStart = source.headerRows;
   const add = (
     code: string,
     date: string,
@@ -58,12 +62,18 @@ export function parseAttendance(
     const missingIndex = missing ? indexOf(missing) : -1;
     for (const row of rows.slice(source.headerRows)) {
       const rowCode = codeOf(row[codeIndex]);
-      if (!codes.has(rowCode)) continue;
+      if (!codes.has(rowCode)) {
+        if (rowCode) otherRows++;
+        continue;
+      }
       const day = parseDate(row[dateIndex] ?? "", {
         window,
         dateOrder: config.dateOrder,
       });
-      if (!day) continue;
+      if (!day) {
+        invalidDateRows++;
+        continue;
+      }
       matchedRows++;
       dates.add(day);
       if (day < window.from || day > window.to) continue;
@@ -85,7 +95,7 @@ export function parseAttendance(
       [config.me.rosterName, ...config.me.alsoCover].map(labelOf),
     );
     const start = indexOf(firstDateColumn);
-    const dataStart = Math.max(source.headerRows, dateHeaderRow);
+    dataStart = Math.max(source.headerRows, dateHeaderRow);
     warnings.push(...checkColumns(rows, { key: keyColumn }, dataStart));
     if (!header.slice(start).some((value) => value.trim()))
       throw new Error("MISSING_REQUIRED_COLUMN:attendance dates");
@@ -104,8 +114,10 @@ export function parseAttendance(
       const code =
         keyType === "name" ? names.get(nameOf(rawKey)) : codeOf(rawKey);
       if (!code || !codes.has(code)) {
-        if (keyType === "name" && teamLeads.has(labelOf(row[leadIndex])))
-          unmatched.add(rawKey);
+        if (teamLeads.has(labelOf(row[leadIndex]))) {
+          unmatchedTeamRows++;
+          if (keyType === "name") unmatched.add(rawKey);
+        } else otherRows++;
         continue;
       }
       matchedRows++;
@@ -127,6 +139,12 @@ export function parseAttendance(
   return {
     records: [...records.values()],
     matchedRows,
+    unmatchedTeamRows,
+    otherRows,
+    invalidDateRows,
+    dataRows: rows
+      .slice(dataStart)
+      .filter((row) => row.some((cell) => cell.trim())).length,
     warnings,
     dates: [...dates].sort(),
   };

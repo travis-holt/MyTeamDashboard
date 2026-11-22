@@ -14,22 +14,14 @@ import { readFixture } from "../fetch/fixtures.js";
 import { sourceUrl } from "../fetch/urls.js";
 import { parseMaster } from "../parse/master.js";
 import { localDate, plusDays, weekday } from "../parse/normalize.js";
-import { parseSchedule, type Window } from "../parse/schedule.js";
+import { parseSchedule } from "../parse/schedule.js";
 import { parseAttendance } from "../parse/attendance.js";
 import { runRules } from "../rules/index.js";
 import { jobRunner } from "./runJob.js";
 import { rosterChanges } from "./syncRoster.js";
 import { replaceSchedule } from "./syncSchedule.js";
-import { replaceAttendance } from "./syncAttendance.js";
-
-function coveredRange(dates: string[], window: Window): Window {
-  const first = dates[0];
-  const last = dates[dates.length - 1];
-  return {
-    from: first > window.from ? first : window.from,
-    to: last < window.to ? last : window.to,
-  };
-}
+import { summarizeAttendance } from "./attendancePreview.js";
+import { coveredRange, replaceAttendance } from "./syncAttendance.js";
 
 export function createSync(
   db: Db,
@@ -43,14 +35,26 @@ export function createSync(
     from: plusDays(today(), -config.syncWindow.pastDays),
     to: plusDays(today(), config.syncWindow.futureDays),
   });
-  async function load(source: SourceKey) {
+  async function load(source: SourceKey, log = true) {
     const result =
       mode === "fixture"
-        ? readFixture(source)
+        ? readFixture(
+            source,
+            source === "attendance" &&
+              config.sources.attendance.layout === "wide"
+              ? "attendance-wide"
+              : source,
+          )
         : await fetchCsv(sourceUrl(config.sources[source]));
-    console.log(
-      source + ": " + result.bytes + " bytes, " + result.rows.length + " rows",
-    );
+    if (log)
+      console.log(
+        source +
+          ": " +
+          result.bytes +
+          " bytes, " +
+          result.rows.length +
+          " rows",
+      );
     return result.rows;
   }
   const roster = () =>
@@ -171,7 +175,28 @@ export function createSync(
       return rules();
     });
   }
+  let previewPending: ReturnType<typeof previewAttendance> | undefined;
+  async function previewAttendance() {
+    if (!agentsOf(db).length)
+      throw new Error("Sync the roster before the dry run");
+    if (mode === "live" && !config.sources.attendance.sheetId)
+      throw new Error("Configure an attendance source before the dry run");
+    const rows = await load("attendance", false).catch(() => {
+      throw new Error(
+        "Could not read the attendance CSV. Check the source link and tab.",
+      );
+    });
+    return db.transaction(() =>
+      summarizeAttendance(db, rows, config, today(), window()),
+    )();
+  }
   return {
+    previewAttendance() {
+      previewPending ??= previewAttendance().finally(() => {
+        previewPending = undefined;
+      });
+      return previewPending;
+    },
     start,
     today,
     window,
