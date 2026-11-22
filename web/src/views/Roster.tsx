@@ -45,6 +45,11 @@ export function Roster({
   );
   const [search, setSearch] = useState("");
   const error = agents.error || events.error || mismatches.error;
+  function retry() {
+    if (agents.error) agents.reload();
+    if (events.error) events.reload();
+    if (mismatches.error) mismatches.reload();
+  }
   const visible = (agents.data ?? []).filter((agent) =>
     (agent.firstName + " " + agent.code + " " + agent.account)
       .toLowerCase()
@@ -73,7 +78,7 @@ export function Roster({
         title="Roster"
         description="Team membership and changes from the master sheet."
       />
-      {error && <ErrorNotice>{error}</ErrorNotice>}
+      {error && <ErrorNotice retry={retry}>{error}</ErrorNotice>}
       <div className="roster-cards">
         {sections.map(({ title, rows, empty }) => (
           <Section key={title} title={title}>
@@ -97,7 +102,7 @@ export function Roster({
                 ))}
               </ul>
             ) : (
-              <Empty>{empty}</Empty>
+              !events.error && <Empty>{empty}</Empty>
             )}
           </Section>
         ))}
@@ -119,7 +124,7 @@ export function Roster({
               ))}
             </ul>
           ) : (
-            <Empty>No open roster mismatches.</Empty>
+            !mismatches.error && <Empty>No open roster mismatches.</Empty>
           )}
         </Section>
       </div>
@@ -172,9 +177,11 @@ export function Roster({
             </tbody>
           </DataTable>
         ) : (
-          <Empty>
-            {search ? "No agents match your search." : "No agents loaded."}
-          </Empty>
+          !agents.error && (
+            <Empty>
+              {search ? "No agents match your search." : "No agents loaded."}
+            </Empty>
+          )
         )}
       </Section>
     </>

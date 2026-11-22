@@ -3,6 +3,8 @@ import cookieSession from "cookie-session";
 import { rateLimit } from "express-rate-limit";
 import type { Request, RequestHandler } from "express";
 import { createHmac } from "node:crypto";
+import { z } from "zod";
+import { endpoint } from "./api/request.js";
 import type { Env } from "./env.js";
 
 const duration = 12 * 60 * 60 * 1000;
@@ -35,31 +37,35 @@ export function auth(env: Env) {
     legacyHeaders: false,
     message: { error: "Too many attempts. Try again in a minute." },
   });
-  const login: RequestHandler = (req, res, next) => {
-    const password = req.body?.password;
-    if (
-      typeof password !== "string" ||
-      !password ||
-      Buffer.byteLength(password) > 72
-    ) {
-      res.status(401).json({ error: "Incorrect password" });
-      return;
-    }
-    void bcrypt
-      .compare(password, env.DASHBOARD_PASSWORD_HASH)
-      .then((valid) => {
-        if (!valid) {
-          res.status(401).json({ error: "Incorrect password" });
-          return;
-        }
-        req.session = { expiresAt: Date.now() + duration };
-        res.sendStatus(204);
-      })
-      .catch(next);
-  };
-  const logout: RequestHandler = (req, res) => {
+  const login = endpoint(
+    {
+      body: z.strictObject({
+        password: z
+          .string()
+          .min(1)
+          .refine(
+            (value) => Buffer.byteLength(value) <= 72,
+            "Use up to 72 UTF-8 bytes",
+          ),
+      }),
+    },
+    ({ body: { password } }, req, res, next) => {
+      void bcrypt
+        .compare(password, env.DASHBOARD_PASSWORD_HASH)
+        .then((valid) => {
+          if (!valid) {
+            res.status(401).json({ error: "Incorrect password" });
+            return;
+          }
+          req.session = { expiresAt: Date.now() + duration };
+          res.sendStatus(204);
+        })
+        .catch(next);
+    },
+  );
+  const logout = endpoint({}, (_input, req, res) => {
     req.session = null;
     res.sendStatus(204);
-  };
+  });
   return { session, requireSession, signedIn, loginLimit, login, logout };
 }

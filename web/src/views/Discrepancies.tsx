@@ -3,6 +3,7 @@ import { Check, Copy } from "lucide-react";
 import type { DiscrepancyRow, Scope } from "../../../server/src/api/dto";
 import { api, message, query, useApi } from "../api";
 import {
+  CardCell,
   DataTable,
   Empty,
   ErrorNotice,
@@ -36,6 +37,9 @@ export function Discrepancies({
   const checked = visible
     .filter((row) => selected.has(row.id))
     .map((row) => row.id);
+  const allSelected = visible.length > 0 && checked.length === visible.length;
+  const selectAll = (include: boolean) =>
+    setSelected(include ? new Set(visible.map((row) => row.id)) : new Set());
   const toggle = (id: string) =>
     setSelected((previous) => {
       const next = new Set(previous);
@@ -192,9 +196,10 @@ export function Discrepancies({
             </select>
           </label>
         </div>
-        {(error || result.error) && (
-          <ErrorNotice>{error || result.error}</ErrorNotice>
+        {result.error && (
+          <ErrorNotice retry={result.reload}>{result.error}</ErrorNotice>
         )}
+        {error && <ErrorNotice>{error}</ErrorNotice>}
         {notice && (
           <div className="notice" role="status">
             <Check size={16} />
@@ -213,26 +218,30 @@ export function Discrepancies({
             </button>
           </div>
         )}
+        {visible.length > 0 && (
+          <div className="mobile-table-controls">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={(event) => selectAll(event.target.checked)}
+              />
+              Select all visible
+            </label>
+          </div>
+        )}
         {!result.data && !result.error ? (
           <Loading />
         ) : visible.length > 0 ? (
-          <DataTable label="Discrepancies">
+          <DataTable label="Discrepancies" cards>
             <thead>
               <tr>
                 <th>
                   <input
                     type="checkbox"
                     aria-label="Select all visible"
-                    checked={
-                      visible.length > 0 && checked.length === visible.length
-                    }
-                    onChange={(event) =>
-                      setSelected(
-                        event.target.checked
-                          ? new Set(visible.map((row) => row.id))
-                          : new Set(),
-                      )
-                    }
+                    checked={allSelected}
+                    onChange={(event) => selectAll(event.target.checked)}
                   />
                 </th>
                 <th>Code</th>
@@ -245,33 +254,37 @@ export function Discrepancies({
                 <th>State</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {visible.map((row) => (
-                <tr key={row.id}>
-                  <td>
+                <tr role="row" key={row.id}>
+                  <CardCell label="Selection">
                     <input
                       type="checkbox"
                       aria-label={"Select " + row.code + " " + row.ruleId}
                       checked={selected.has(row.id)}
                       onChange={() => toggle(row.id)}
                     />
-                  </td>
-                  <td className="mono">{row.code}</td>
-                  <td>
+                  </CardCell>
+                  <CardCell label="Code" className="mono">
+                    {row.code}
+                  </CardCell>
+                  <CardCell label="Name">
                     <button
                       className="agent-link"
                       onClick={() => openAgent(row.code)}
                     >
                       {row.firstName || row.code}
                     </button>
-                  </td>
-                  <td>{row.tl || "—"}</td>
-                  <td>{row.account || "—"}</td>
-                  <td className="mono nowrap">{row.date}</td>
-                  <td>
+                  </CardCell>
+                  <CardCell label="Team Leader">{row.tl || "—"}</CardCell>
+                  <CardCell label="Account">{row.account || "—"}</CardCell>
+                  <CardCell label="Date" className="mono nowrap">
+                    {row.date}
+                  </CardCell>
+                  <CardCell label="Missing">
                     <span className="rule-tag">{row.ruleId}</span> {row.missing}
-                  </td>
-                  <td>
+                  </CardCell>
+                  <CardCell label="TL Comment">
                     <input
                       className="comment"
                       aria-label={
@@ -287,8 +300,8 @@ export function Discrepancies({
                           });
                       }}
                     />
-                  </td>
-                  <td>
+                  </CardCell>
+                  <CardCell label="State">
                     <select
                       aria-label={"State for " + row.code + " " + row.ruleId}
                       value={row.state}
@@ -304,7 +317,7 @@ export function Discrepancies({
                         </option>
                       ))}
                     </select>
-                  </td>
+                  </CardCell>
                 </tr>
               ))}
             </tbody>

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectAccessible } from "./accessibility";
 
 test("sign in, review views, add an agent note, and copy the email table", async ({
   page,
@@ -14,12 +15,14 @@ test("sign in, review views, add an agent note, and copy the email table", async
     )
       consoleErrors.push(event.text());
   });
-  const screenshot = (name: string) =>
-    page.screenshot({
+  const screenshot = async (name: string) => {
+    await expectAccessible(page);
+    await page.screenshot({
       path: testInfo.outputPath(name + ".png"),
       fullPage: true,
       animations: "disabled",
     });
+  };
   const theme = (dark: boolean) =>
     page
       .getByRole("button", {

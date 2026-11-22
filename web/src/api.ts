@@ -48,7 +48,10 @@ export function useApi<T>(path: string) {
     error?: string;
   } | null>(null);
   const [version, setVersion] = useState(0);
-  const reload = useCallback(() => setVersion((value) => value + 1), []);
+  const reload = useCallback(() => {
+    setResult((old) => (old?.error ? null : old));
+    setVersion((value) => value + 1);
+  }, []);
   const update = useCallback(
     (fn: (data: T) => T) =>
       setResult((old) =>

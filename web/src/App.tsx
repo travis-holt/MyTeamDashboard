@@ -161,7 +161,9 @@ function Dashboard({
           </div>
         </div>
         <main className="content">
-          {status.error && <ErrorNotice>{status.error}</ErrorNotice>}
+          {status.error && location.pathname !== "/settings" && (
+            <ErrorNotice retry={status.reload}>{status.error}</ErrorNotice>
+          )}
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route
@@ -180,7 +182,7 @@ function Dashboard({
                   today ? (
                     <Trends scope={scope} today={today} openAgent={openAgent} />
                   ) : (
-                    <Loading />
+                    !status.error && <Loading />
                   )
                 }
               />
@@ -190,7 +192,7 @@ function Dashboard({
                   today ? (
                     <Roster scope={scope} today={today} openAgent={openAgent} />
                   ) : (
-                    <Loading />
+                    !status.error && <Loading />
                   )
                 }
               />
@@ -214,6 +216,7 @@ function App() {
   );
   const [authError, setAuthError] = useState("");
   const load = useCallback(() => {
+    setAuthError("");
     api<User>("/me")
       .then(setUser)
       .catch((error) => {
@@ -240,7 +243,7 @@ function App() {
   if (user === undefined) return <Loading />;
   return (
     <BrowserRouter>
-      {authError && <ErrorNotice>{authError}</ErrorNotice>}
+      {authError && <ErrorNotice retry={load}>{authError}</ErrorNotice>}
       {user ? (
         <Dashboard user={user} dark={dark} toggle={toggle} logout={logout} />
       ) : (

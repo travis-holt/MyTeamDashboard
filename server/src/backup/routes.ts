@@ -1,9 +1,6 @@
-import express, {
-  Router,
-  type Request,
-  type ErrorRequestHandler,
-} from "express";
+import express, { Router, type ErrorRequestHandler } from "express";
 import { z } from "zod";
+import { endpoint } from "../api/request.js";
 import type { Db } from "../db/db.js";
 import {
   BackupError,
@@ -22,26 +19,36 @@ export function backupRoutes(db: Db) {
     limit: maxBackupBytes,
     inflate: false,
   });
-  function upload(req: Request) {
-    if (!Buffer.isBuffer(req.body))
-      throw new BackupError(400, "Upload a JSON backup file");
-    return parseBackup(req.body);
-  }
-  router.get("/", (_req, res) => {
-    const now = new Date();
-    const content = exportBackup(db, now);
-    res.attachment(backupName(now)).send(content);
+  const upload = z.instanceof(Buffer, { error: "Upload a JSON backup file" });
+  const restoreQuery = z.strictObject({
+    token: z.string().regex(/^[0-9a-f]{64}$/),
   });
-  router.post("/preview", file, (req, res) =>
-    res.json(previewBackup(db, upload(req))),
+  router.get(
+    "/",
+    endpoint({}, (_input, _req, res) => {
+      const now = new Date();
+      const content = exportBackup(db, now);
+      res.attachment(backupName(now)).send(content);
+    }),
   );
-  router.post("/restore", file, (req, res) => {
-    const query = z
-      .strictObject({ token: z.string().regex(/^[0-9a-f]{64}$/) })
-      .parse(req.query);
-    restoreBackup(db, upload(req), query.token);
-    res.sendStatus(204);
-  });
+  router.post(
+    "/preview",
+    file,
+    endpoint({ body: upload }, ({ body }, _req, res) =>
+      res.json(previewBackup(db, parseBackup(body))),
+    ),
+  );
+  router.post(
+    "/restore",
+    file,
+    endpoint(
+      { body: upload, query: restoreQuery },
+      ({ body, query }, _req, res) => {
+        restoreBackup(db, parseBackup(body), query.token);
+        res.sendStatus(204);
+      },
+    ),
+  );
   const errors: ErrorRequestHandler = (error, _req, res, next) => {
     if (error instanceof BackupError)
       res.status(error.status).json({ error: error.message });

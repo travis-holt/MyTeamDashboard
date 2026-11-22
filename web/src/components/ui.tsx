@@ -73,12 +73,25 @@ export function Empty({ children }: { children: ReactNode }) {
     </div>
   );
 }
-export function ErrorNotice({ children }: { children: ReactNode }) {
+export function ErrorNotice({
+  children,
+  retry,
+}: {
+  children: ReactNode;
+  retry?: () => void;
+}) {
   return (
-    <p className="error" role="alert">
-      <AlertTriangle size={16} />
-      {children}
-    </p>
+    <div className="error">
+      <span role="alert">
+        <AlertTriangle size={16} aria-hidden="true" />
+        {children}
+      </span>
+      {retry && (
+        <button type="button" className="secondary" onClick={retry}>
+          Retry
+        </button>
+      )}
+    </div>
   );
 }
 export function Loading() {
@@ -133,14 +146,35 @@ export function StatCard({
 export function DataTable({
   children,
   label,
+  cards = false,
 }: {
   children: ReactNode;
   label: string;
+  cards?: boolean;
 }) {
   return (
-    <div className="table-scroll">
-      <table aria-label={label}>{children}</table>
+    <div className={cards ? "table-scroll card-table" : "table-scroll"}>
+      <table aria-label={label} role="table">
+        {children}
+      </table>
     </div>
+  );
+}
+
+export function CardCell({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <td role="cell" className={className}>
+      <span className="mobile-cell-label">{label}</span>
+      <span className="card-cell-value">{children}</span>
+    </td>
   );
 }
 export function formatDay(date: string) {

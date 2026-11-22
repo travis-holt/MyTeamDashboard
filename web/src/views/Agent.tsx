@@ -8,6 +8,7 @@ import type {
 } from "../../../server/src/api/dto";
 import { api, message, useApi } from "../api";
 import {
+  CardCell,
   DataTable,
   Empty,
   ErrorNotice,
@@ -28,6 +29,8 @@ function NoteEditor({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState<NoteInput>(starting);
+  const firstField = useRef<HTMLInputElement>(null);
+  useEffect(() => firstField.current?.focus(), []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function submit(event: FormEvent) {
@@ -49,6 +52,7 @@ function NoteEditor({
           Date
           <input
             type="date"
+            ref={firstField}
             value={draft.date}
             required
             onChange={(event) =>
@@ -119,7 +123,8 @@ function AgentDetails({
   const data = useApi<AgentProfile>("/agents/" + encodeURIComponent(code));
   const [edit, setEdit] = useState<Note | "new" | null>(null);
   const [error, setError] = useState("");
-  if (data.error) return <ErrorNotice>{data.error}</ErrorNotice>;
+  if (data.error)
+    return <ErrorNotice retry={data.reload}>{data.error}</ErrorNotice>;
   if (!data.data) return <Loading />;
   const { agent, history, next7, fixedOffDays, discrepancies, notes } =
     data.data;
@@ -215,22 +220,26 @@ function AgentDetails({
         )}
       </Section>
       <Section title="35-day history">
-        <div className="day-grid history">
-          {history.map((day) => (
-            <div key={day.date}>
-              <time dateTime={day.date}>{day.date.slice(5)}</time>
-              {day.schedule ? (
-                <Pill
-                  status={day.schedule.status}
-                  shift={day.schedule.shiftStart}
-                />
-              ) : (
-                <small>—</small>
-              )}
-              {day.attendance && <Pill status={day.attendance.status} />}
-            </div>
-          ))}
-        </div>
+        {history.some((day) => day.schedule || day.attendance) ? (
+          <div className="day-grid history">
+            {history.map((day) => (
+              <div key={day.date}>
+                <time dateTime={day.date}>{day.date.slice(5)}</time>
+                {day.schedule ? (
+                  <Pill
+                    status={day.schedule.status}
+                    shift={day.schedule.shiftStart}
+                  />
+                ) : (
+                  <small>—</small>
+                )}
+                {day.attendance && <Pill status={day.attendance.status} />}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty>No schedule or attendance history.</Empty>
+        )}
       </Section>
       <Section title="Discrepancies">
         {discrepancies.length ? (
@@ -266,7 +275,7 @@ function AgentDetails({
           />
         )}
         {notes.length ? (
-          <DataTable label="Notes">
+          <DataTable label="Notes" cards>
             <thead>
               <tr>
                 <th>Date</th>
@@ -275,33 +284,41 @@ function AgentDetails({
                 <th>Agreed next step</th>
                 <th>Follow-up date</th>
                 <th>Done</th>
-                <th></th>
+                <th>Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {notes.map((note) => (
-                <tr key={note.id}>
-                  <td className="nowrap">{note.date}</td>
-                  <td>{note.whatHappened}</td>
-                  <td>{note.whatWasSaid || "—"}</td>
-                  <td>{note.nextStep || "—"}</td>
-                  <td className="nowrap">{note.followUpDate ?? "—"}</td>
-                  <td>
+                <tr role="row" key={note.id}>
+                  <CardCell label="Date" className="nowrap">
+                    {note.date}
+                  </CardCell>
+                  <CardCell label="What happened">{note.whatHappened}</CardCell>
+                  <CardCell label="What was said">
+                    {note.whatWasSaid || "—"}
+                  </CardCell>
+                  <CardCell label="Agreed next step">
+                    {note.nextStep || "—"}
+                  </CardCell>
+                  <CardCell label="Follow-up date" className="nowrap">
+                    {note.followUpDate ?? "—"}
+                  </CardCell>
+                  <CardCell label="Done">
                     <input
                       type="checkbox"
                       aria-label={"Mark note " + (note.done ? "open" : "done")}
                       checked={note.done}
                       onChange={() => void setDone(note)}
                     />
-                  </td>
-                  <td>
+                  </CardCell>
+                  <CardCell label="Actions">
                     <button
                       className="text-button"
                       onClick={() => setEdit(note)}
                     >
                       Edit
                     </button>
-                  </td>
+                  </CardCell>
                 </tr>
               ))}
             </tbody>
@@ -328,10 +345,13 @@ export function Agent({
   useEffect(() => {
     if (!close || !dialog.current) return;
     const element = dialog.current;
+    const trigger = document.activeElement;
     element.showModal();
     window.addEventListener("dashboard:close-drawer", close);
     return () => {
       element.close();
+      if (trigger instanceof HTMLElement && trigger.isConnected)
+        trigger.focus();
       window.removeEventListener("dashboard:close-drawer", close);
     };
   }, [close]);

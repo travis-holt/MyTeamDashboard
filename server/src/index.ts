@@ -2,21 +2,18 @@ import express, { type ErrorRequestHandler } from "express";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ZodError } from "zod";
-import { loadConfig } from "./config.js";
-import { readEnv } from "./env.js";
-import { openDb } from "./db/db.js";
+import { loadConfig, type Config } from "./config.js";
+import { readEnv, type Env } from "./env.js";
+import { openDb, type Db } from "./db/db.js";
 import { auth } from "./auth.js";
+import { endpoint } from "./api/request.js";
 import { checkLinkRoutes } from "./api/checkLink.js";
 import { createRoutes } from "./api/routes.js";
-import { createSync } from "./sync/service.js";
+import { createSync, type SyncService } from "./sync/service.js";
 import { backupRoutes } from "./backup/routes.js";
 import { startBackupCron, startCron } from "./sync/cron.js";
 
-export function startServer(now?: () => Date) {
-  const env = readEnv();
-  const config = loadConfig(undefined, env.SOURCE_MODE);
-  const db = openDb(env.DATA_DIR);
-  const sync = createSync(db, config, env.SOURCE_MODE, now);
+export function createApp(env: Env, config: Config, db: Db, sync: SyncService) {
   const login = auth(env);
   const app = express();
   app.disable("x-powered-by");
@@ -26,10 +23,6 @@ export function startServer(now?: () => Date) {
     res.set("X-Frame-Options", "DENY");
     res.set("Referrer-Policy", "no-referrer");
     next();
-  });
-  app.get("/api/health", (_req, res) => {
-    db.prepare("SELECT 1").get();
-    res.json({ ok: true });
   });
   app.use(
     "/api",
@@ -47,6 +40,13 @@ export function startServer(now?: () => Date) {
     },
     express.json({ limit: "128kb" }),
     login.session,
+  );
+  app.get(
+    "/api/health",
+    endpoint({}, (_input, _req, res) => {
+      db.prepare("SELECT 1").get();
+      res.json({ ok: true });
+    }),
   );
   app.post("/api/login", login.loginLimit, login.login);
   app.use("/api", login.requireSession);
@@ -76,13 +76,18 @@ export function startServer(now?: () => Date) {
     if (error instanceof ZodError) {
       res.status(400).json({
         error: error.issues
-          .map((issue) => issue.path.join(".") + " " + issue.message)
+          .map((issue) => issue.path.join(".") + ": " + issue.message)
           .join("; "),
       });
       return;
     }
     if (error?.status >= 400 && error.status < 500) {
-      res.status(error.status).json({ error: "Invalid request" });
+      res.status(error.status).json({
+        error:
+          error.type === "entity.parse.failed"
+            ? "body: Invalid JSON"
+            : "Invalid request",
+      });
       return;
     }
     console.error(
@@ -92,6 +97,15 @@ export function startServer(now?: () => Date) {
     res.status(500).json({ error: "Something went wrong" });
   };
   app.use(errors);
+  return app;
+}
+
+export function startServer(now?: () => Date) {
+  const env = readEnv();
+  const config = loadConfig(undefined, env.SOURCE_MODE);
+  const db = openDb(env.DATA_DIR);
+  const sync = createSync(db, config, env.SOURCE_MODE, now);
+  const app = createApp(env, config, db, sync);
   const cron = startCron(config, sync);
   if (env.DATA_DIR !== ":memory:") cron.push(startBackupCron(db, env.DATA_DIR));
   const server = app.listen(
