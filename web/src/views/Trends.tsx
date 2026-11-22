@@ -105,7 +105,9 @@ export function Trends({
           </button>
         ))}
       </div>
-      {result.error && <ErrorNotice>{result.error}</ErrorNotice>}
+      {result.error && (
+        <ErrorNotice retry={result.reload}>{result.error}</ErrorNotice>
+      )}
       {!result.data && !result.error && <Loading />}
       {result.data && (
         <>

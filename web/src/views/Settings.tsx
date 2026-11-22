@@ -29,7 +29,8 @@ export function Settings({
 }) {
   const [request, setRequest] = useState<Job | null>(null);
   const [error, setError] = useState("");
-  if (status.error) return <ErrorNotice>{status.error}</ErrorNotice>;
+  if (status.error)
+    return <ErrorNotice retry={status.reload}>{status.error}</ErrorNotice>;
   if (!status.data) return <Loading />;
   const data = status.data;
   const time = (stamp: string | null) =>

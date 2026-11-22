@@ -19,6 +19,8 @@
   --border: #dce5ee;
   --hover: #f1f7fb;
   --control: #fff;
+  --control-border: #7890a4;
+  --focus: #096951;
   --accent: #096951;
   --accent-bg: #e4f4ed;
   --bad: #a43046;
@@ -42,6 +44,8 @@
   --border: #2b3e52;
   --hover: #213244;
   --control: #122033;
+  --control-border: #6d8399;
+  --focus: #70d7b0;
   --accent: #70d7b0;
   --accent-bg: #193e36;
   --bad: #ff9dae;
@@ -77,7 +81,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-  outline: 2px solid #39a98c;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 input:not([type="checkbox"]),
@@ -85,7 +89,7 @@ select,
 textarea {
   color: var(--text);
   background: var(--control);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   padding: 8px 10px;
   min-width: 0;
@@ -103,6 +107,9 @@ textarea {
 a {
   color: inherit;
   text-decoration: none;
+}
+.sidebar {
+  --focus: #70d7b0;
 }
 .app-shell {
   min-height: 100vh;
@@ -524,7 +531,7 @@ tbody tr:hover {
   padding: 4px 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--status) 13%, var(--panel));
-  color: color-mix(in srgb, var(--status) 65%, #11253a);
+  color: color-mix(in srgb, var(--status) 42%, #11253a);
   white-space: nowrap;
 }
 [data-theme="dark"] .pill {
@@ -556,7 +563,7 @@ tbody tr:hover {
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   padding: 0 8px;
   background: var(--control);
@@ -670,6 +677,22 @@ button.secondary.active {
 .notice {
   background: var(--accent-bg);
   color: var(--accent);
+}
+.error > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.error > span svg {
+  flex: none;
+}
+.error button {
+  margin-left: auto;
+}
+.mobile-cell-label,
+.mobile-table-controls {
+  display: none;
 }
 .loading {
   display: grid;
@@ -969,6 +992,69 @@ summary {
   }
   .drawer-inner {
     padding: 16px 10px;
+  }
+  .mobile-table-controls {
+    display: flex;
+    padding: 6px 12px 12px;
+  }
+  .mobile-table-controls label:not(.checkbox-label) {
+    display: grid;
+    gap: 5px;
+  }
+  .card-table {
+    padding: 0 10px 10px;
+    overflow: visible;
+  }
+  .card-table table,
+  .card-table tbody {
+    display: block;
+  }
+  .card-table thead {
+    display: none;
+  }
+  .card-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+  .card-table tr {
+    display: grid;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 9px;
+  }
+  .card-table td {
+    display: grid;
+    grid-template-columns: minmax(66px, 32%) minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    border: 0;
+    padding: 5px 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .card-table td input:not([type="checkbox"]),
+  .card-table td select {
+    width: 100%;
+  }
+  .mobile-cell-label {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .card-cell-value,
+  .panel-heading > *,
+  .source-details > * {
+    min-width: 0;
+  }
+  .page-header,
+  .panel-heading {
+    flex-wrap: wrap;
+  }
+  .source-details input[type="file"] {
+    max-width: 100%;
+  }
+  .top-controls {
+    flex-wrap: wrap;
   }
   .day-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));

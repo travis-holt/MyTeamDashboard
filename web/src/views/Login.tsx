@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, Layers3, Moon, Sun } from "lucide-react";
 import { api, message } from "../api";
-import { ErrorNotice } from "../components/ui";
+import { ErrorNotice, Loading } from "../components/ui";
 
 export function Login({
   onLogin,
@@ -56,9 +56,10 @@ export function Login({
         </label>
         {error && <ErrorNotice>{error}</ErrorNotice>}
         <button className="primary" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
+          {busy ? "Signing in…" : error ? "Retry sign in" : "Sign in"}
           <ArrowRight size={17} />
         </button>
+        {busy && <Loading />}
       </form>
     </main>
   );

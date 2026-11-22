@@ -26,6 +26,7 @@
     "hash-password": "tsx server/src/cli.ts hash-password"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.5",
     "@types/bcrypt": "^6.0.0",

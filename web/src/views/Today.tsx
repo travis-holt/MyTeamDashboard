@@ -9,6 +9,7 @@ import {
 import type { Scope, TodayData } from "../../../server/src/api/dto";
 import { query, useApi } from "../api";
 import {
+  CardCell,
   DataTable,
   Empty,
   ErrorNotice,
@@ -38,7 +39,8 @@ export function Today({
     field: "name",
     desc: false,
   });
-  if (state.error) return <ErrorNotice>{state.error}</ErrorNotice>;
+  if (state.error)
+    return <ErrorNotice retry={state.reload}>{state.error}</ErrorNotice>;
   if (!state.data) return <Loading />;
   const {
     counts,
@@ -205,8 +207,31 @@ export function Today({
         title="Agents"
         action={<SearchBox value={search} onChange={setSearch} />}
       >
+        {visible.length > 0 && (
+          <div className="mobile-table-controls">
+            <label>
+              Sort agents
+              <select
+                value={sort.field + (sort.desc ? ":desc" : ":asc")}
+                onChange={(event) => {
+                  const [field, direction] = event.target.value.split(":");
+                  setSort({ field: field as Sort, desc: direction === "desc" });
+                }}
+              >
+                {columns.flatMap(([field, label]) => [
+                  <option key={field + ":asc"} value={field + ":asc"}>
+                    {label} ↑
+                  </option>,
+                  <option key={field + ":desc"} value={field + ":desc"}>
+                    {label} ↓
+                  </option>,
+                ])}
+              </select>
+            </label>
+          </div>
+        )}
         {visible.length ? (
-          <DataTable label="Agents">
+          <DataTable label="Agents" cards>
             <thead>
               <tr>
                 {columns.map(([field, label]) => (
@@ -217,7 +242,7 @@ export function Today({
                         ? sort.desc
                           ? "descending"
                           : "ascending"
-                        : "none"
+                        : undefined
                     }
                   >
                     <button className="sort" onClick={() => changeSort(field)}>
@@ -229,10 +254,14 @@ export function Today({
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {visible.map(({ agent, schedule, attendance }) => (
-                <tr key={agent.code} onClick={() => openAgent(agent.code)}>
-                  <td>
+                <tr
+                  role="row"
+                  key={agent.code}
+                  onClick={() => openAgent(agent.code)}
+                >
+                  <CardCell label="Name">
                     <button
                       className="agent-link"
                       onClick={(event) => {
@@ -242,10 +271,12 @@ export function Today({
                     >
                       {agent.firstName || agent.code}
                     </button>
-                  </td>
-                  <td className="mono">{agent.code}</td>
-                  <td>{agent.account || "—"}</td>
-                  <td>
+                  </CardCell>
+                  <CardCell label="Code" className="mono">
+                    {agent.code}
+                  </CardCell>
+                  <CardCell label="Account">{agent.account || "—"}</CardCell>
+                  <CardCell label="Schedule">
                     {schedule ? (
                       <Pill
                         status={schedule.status}
@@ -254,13 +285,13 @@ export function Today({
                     ) : (
                       <span className="group-tag">Not on schedule</span>
                     )}
-                  </td>
+                  </CardCell>
                   {attendanceEnabled && (
-                    <td>
+                    <CardCell label="Attendance">
                       {attendance ? <Pill status={attendance.status} /> : "—"}
-                    </td>
+                    </CardCell>
                   )}
-                  <td>
+                  <CardCell label="Actions">
                     {affected.has(agent.code) ? (
                       <TriangleAlert
                         size={16}
@@ -270,7 +301,7 @@ export function Today({
                     ) : (
                       "—"
                     )}
-                  </td>
+                  </CardCell>
                 </tr>
               ))}
             </tbody>
