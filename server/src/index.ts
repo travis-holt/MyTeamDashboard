@@ -6,6 +6,7 @@ import { loadConfig } from "./config.js";
 import { readEnv } from "./env.js";
 import { openDb } from "./db/db.js";
 import { auth } from "./auth.js";
+import { checkLinkRoutes } from "./api/checkLink.js";
 import { createRoutes } from "./api/routes.js";
 import { createSync } from "./sync/service.js";
 import { backupRoutes } from "./backup/routes.js";
@@ -51,6 +52,7 @@ export function startServer(now?: () => Date) {
   app.use("/api", login.requireSession);
   app.post("/api/logout", login.logout);
   app.use("/api/backup", backupRoutes(db));
+  app.use("/api/check-link", checkLinkRoutes(config));
   app.use("/api", createRoutes(db, config, sync));
   app.use(express.static(resolve("web/dist"), { index: false }));
   app.get("*", (req, res) => {

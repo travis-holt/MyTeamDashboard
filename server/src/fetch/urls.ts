@@ -1,16 +1,18 @@
 import type { Config, SourceKey } from "../config.js";
 export function parseLink(link: string) {
-  const url = new URL(link);
+  const url = URL.canParse(link) ? new URL(link) : null;
   const id = /^\/spreadsheets\/d\/([\w-]+)\/(?:edit|view)\/?$/.exec(
-    url.pathname,
+    url?.pathname ?? "",
   )?.[1];
   const gid =
-    new URLSearchParams(url.hash.slice(1)).get("gid") ??
-    url.searchParams.get("gid") ??
+    new URLSearchParams(url?.hash.slice(1)).get("gid") ??
+    url?.searchParams.get("gid") ??
     "0";
   if (
-    url.protocol !== "https:" ||
-    url.hostname !== "docs.google.com" ||
+    url?.protocol !== "https:" ||
+    url.host !== "docs.google.com" ||
+    !!url.username ||
+    !!url.password ||
     !id ||
     !/^\d+$/.test(gid)
   )
