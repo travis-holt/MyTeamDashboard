@@ -25,6 +25,7 @@ import type {
 import { plusDays, weekday, weekdays } from "../parse/normalize.js";
 import { excluded } from "../parse/status.js";
 import { exportDiscrepancies } from "./export.js";
+import { trendRange } from "./trendRange.js";
 import { calculateTrends } from "./trends.js";
 
 import {
@@ -397,7 +398,7 @@ export function createRoutes(db: Db, config: Config, sync: SyncService) {
     "/trends",
     endpoint({ query: rangeQuery }, ({ query }, _req, res) => {
       const today = sync.today();
-      const from = query.from ?? plusDays(today, -29);
+      const from = query.from ?? trendRange(today, "30").from;
       const to = query.to ?? today;
       if (from > to || to > plusDays(from, 365)) {
         res
@@ -440,6 +441,7 @@ export function createRoutes(db: Db, config: Config, sync: SyncService) {
     endpoint({}, (_input, _req, res) => {
       const jobs = ["roster", "schedule", "attendance", "rules"];
       const keys = ["master", "schedule", "attendance"] as SourceKey[];
+      const date = sync.today();
       const result: SyncStatus = {
         jobs: Object.fromEntries(
           jobs.map((job) => [
@@ -466,8 +468,8 @@ export function createRoutes(db: Db, config: Config, sync: SyncService) {
         runs: recentRuns(db),
         timezone: config.timezone,
         config,
-        date: sync.today(),
-        window: sync.window(),
+        date,
+        window: sync.window(date),
       };
       res.json(result);
     }),

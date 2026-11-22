@@ -17,10 +17,13 @@ import {
   type TrendStatus,
   type TrendsData,
 } from "../../../server/src/api/dto";
+import {
+  trendRange,
+  type TrendPeriod,
+} from "../../../server/src/api/trendRange";
 import { query, useApi } from "../api";
 import {
   DataTable,
-  dateOffset,
   Empty,
   ErrorNotice,
   Loading,
@@ -34,7 +37,7 @@ const presets = [
   ["30", "Last 30 days"],
   ["90", "Last 90 days"],
   ["month", "Month to date"],
-];
+] as const;
 type Sort = "name" | "discrepancies" | TrendStatus;
 
 export function Trends({
@@ -46,17 +49,13 @@ export function Trends({
   today: string;
   openAgent: (code: string) => void;
 }) {
-  const [period, setPeriod] = useState("30");
+  const [period, setPeriod] = useState<TrendPeriod>("30");
   const [sort, setSort] = useState<{ field: Sort; direction: number }>({
     field: "name",
     direction: 1,
   });
-  const from =
-    period === "month"
-      ? today.slice(0, 7) + "-01"
-      : dateOffset(today, 1 - Number(period));
   const result = useApi<TrendsData>(
-    "/trends" + query({ scope, from, to: today }),
+    "/trends" + query({ scope, ...trendRange(today, period) }),
   );
   const rows = (result.data?.agents ?? []).slice().sort((a, b) => {
     const { field, direction } = sort;

@@ -14,7 +14,7 @@ import { readFixture } from "../fetch/fixtures.js";
 import { sourceUrl } from "../fetch/urls.js";
 import { parseMaster } from "../parse/master.js";
 import { localDate, plusDays, weekday } from "../parse/normalize.js";
-import { parseSchedule } from "../parse/schedule.js";
+import { parseSchedule, type Window } from "../parse/schedule.js";
 import { parseAttendance } from "../parse/attendance.js";
 import { runRules } from "../rules/index.js";
 import { jobRunner } from "./runJob.js";
@@ -31,9 +31,9 @@ export function createSync(
 ) {
   const runner = jobRunner(db, now);
   const today = () => localDate(config.timezone, now());
-  const window = () => ({
-    from: plusDays(today(), -config.syncWindow.pastDays),
-    to: plusDays(today(), config.syncWindow.futureDays),
+  const window = (date = today()): Window => ({
+    from: plusDays(date, -config.syncWindow.pastDays),
+    to: plusDays(date, config.syncWindow.futureDays),
   });
   async function load(source: SourceKey, log = true) {
     const result =
@@ -57,10 +57,9 @@ export function createSync(
       );
     return result.rows;
   }
-  const roster = () =>
+  const roster = (date: string) =>
     runner.runStep("roster", async () => {
       const rows = await load("master");
-      const date = today();
       const { agents, warnings } = parseMaster(rows, config, date);
       const week = plusDays(date, -weekday(date));
       db.transaction(() => {
@@ -80,10 +79,9 @@ export function createSync(
       })();
       return { rowsRead: rows.length, rowsKept: agents.length, warnings };
     });
-  const schedule = () =>
+  const schedule = (range: Window) =>
     runner.runStep("schedule", async () => {
       const rows = await load("schedule");
-      const range = window();
       const { records, warnings, scheduledCodes, dates } = parseSchedule(
         rows,
         config,
@@ -104,10 +102,9 @@ export function createSync(
       )();
       return { rowsRead: rows.length, rowsKept: records.length, warnings };
     });
-  const attendance = () =>
+  const attendance = (range: Window) =>
     runner.runStep("attendance", async () => {
       const rows = await load("attendance");
-      const range = window();
       const { records, matchedRows, warnings, dates } = parseAttendance(
         rows,
         config,
@@ -122,10 +119,8 @@ export function createSync(
       )();
       return { rowsRead: rows.length, rowsKept: records.length, warnings };
     });
-  const rules = () =>
+  const rules = (date: string, range: Window) =>
     runner.runStep("rules", () => {
-      const date = today();
-      const range = window();
       const schedule = scheduleOf(db, { ...range, to: plusDays(date, 7) });
       const attendance = attendanceOf(db, { ...range, to: date });
       const scheduleMembers = lastSuccess(db, "schedule")
@@ -160,19 +155,22 @@ export function createSync(
     });
   function start(job: Job) {
     return runner.start(job, async () => {
-      if (job === "roster") return (await roster()) && (await rules());
+      const date = today();
+      const range = window(date);
+      if (job === "roster")
+        return (await roster(date)) && (await rules(date, range));
       const success = lastSuccess(db, "roster");
       if (
         job === "all" ||
         !success ||
         now().getTime() - Date.parse(success) > 7 * 86400000
       ) {
-        if (!(await roster())) return false;
+        if (!(await roster(date))) return false;
       }
-      if (!(await schedule())) return false;
-      if (config.sources.attendance.enabled && !(await attendance()))
+      if (!(await schedule(range))) return false;
+      if (config.sources.attendance.enabled && !(await attendance(range)))
         return false;
-      return rules();
+      return rules(date, range);
     });
   }
   let previewPending: ReturnType<typeof previewAttendance> | undefined;
@@ -186,8 +184,9 @@ export function createSync(
         "Could not read the attendance CSV. Check the source link and tab.",
       );
     });
+    const date = today();
     return db.transaction(() =>
-      summarizeAttendance(db, rows, config, today(), window()),
+      summarizeAttendance(db, rows, config, date, window(date)),
     )();
   }
   return {
