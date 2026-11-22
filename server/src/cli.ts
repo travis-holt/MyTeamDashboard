@@ -5,9 +5,7 @@ import { readBackup, writeBackup } from "./backup/files.js";
 import { restoreBackup } from "./backup/data.js";
 import { readDataDir, readEnv } from "./env.js";
 import { openDb } from "./db/db.js";
-import { fetchCsv } from "./fetch/fetchCsv.js";
-import { parseLink, exportUrl } from "./fetch/urls.js";
-import { sampleSourceDate } from "./fetch/sampleDate.js";
+import { checkSheetLink, sourceKeys } from "./fetch/checkLink.js";
 import { createSync } from "./sync/service.js";
 import { createInterface } from "node:readline/promises";
 
@@ -28,47 +26,22 @@ try {
   else if (process.argv[2] === "test-link") {
     const link = process.argv[3];
     if (!link) throw new Error("Pass a Google Sheets view link");
-    const { sheetId, gid } = parseLink(link);
     const config = loadConfig(
       existsSync("config/sources.local.json")
         ? "config/sources.local.json"
         : undefined,
     );
-    const keys = ["master", "schedule", "attendance"] as const;
     const selected = process.argv
       .find((arg) => arg.startsWith("--source="))
       ?.slice("--source=".length);
-    const source =
-      selected === undefined
-        ? keys.find(
-            (key) =>
-              config.sources[key].sheetId === sheetId &&
-              config.sources[key].gid === gid,
-          )
-        : keys.find((key) => key === selected);
+    const source = sourceKeys.find((key) => key === selected);
     if (selected !== undefined && !source)
       throw new Error(
         "Pass --source=master, --source=schedule or --source=attendance",
       );
-    const result = await fetchCsv(exportUrl(sheetId, gid));
-    const reveal = process.argv.includes("--show-rows");
-    console.log({
-      sheetId,
-      gid,
-      status: result.status,
-      contentType: result.contentType,
-      bytes: result.bytes,
-      rowCount: result.rows.length,
-      dateOrder: config.dateOrder,
-      sampleDate: sampleSourceDate(result.rows, config, source),
-    });
-    console.log(
-      result.rows
-        .slice(0, 5)
-        .map((row) =>
-          row.map((value) => value && (reveal ? value : "[masked]")),
-        ),
-    );
+    const report = await checkSheetLink({ link, source }, config);
+    console.log(JSON.stringify(report, null, 2));
+    if (report.error || report.mismatches.length) process.exitCode = 1;
   } else if (process.argv[2] === "backup" || process.argv[2] === "restore") {
     const command = process.argv[2];
     const path = process.argv[3];

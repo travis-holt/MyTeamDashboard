@@ -29,6 +29,7 @@ test("sign in, review views, add an agent note, and copy the email table", async
   expect((await request.get("/api/agents")).status()).toBe(401);
   expect((await request.get("/api/backup")).status()).toBe(401);
   expect((await request.post("/api/backup/restore")).status()).toBe(401);
+  expect((await request.post("/api/check-link")).status()).toBe(401);
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Team Dashboard" }),
@@ -120,6 +121,24 @@ test("sign in, review views, add an agent note, and copy the email table", async
       );
     }
     if (view === "Settings") {
+      const checkLink = page.getByRole("heading", { name: "Check a link" });
+      await expect(checkLink).toBeVisible();
+      await page
+        .getByLabel("Google Sheets link")
+        .fill(
+          "https://docs.google.com/spreadsheets/d/FakeSheetToken/edit#gid=27",
+        );
+      await page
+        .getByRole("button", { name: "Check link", exact: true })
+        .click();
+      const headers = page.getByRole("table", { name: "Mapped headers" });
+      await expect(
+        headers.getByRole("cell", { name: "Hiring Date", exact: true }),
+      ).toBeVisible();
+      await expect(
+        headers.getByText(/Phone number|Email|Laptop Number|American Name/),
+      ).toHaveCount(0);
+
       const download = page.waitForEvent("download");
       await page.getByRole("link", { name: "Download backup" }).click();
       const backup = await download;

@@ -3,6 +3,7 @@ import { ExternalLink, RefreshCw } from "lucide-react";
 import type { Job, SyncRun, SyncStatus } from "../../../server/src/api/dto";
 import { api, message } from "../api";
 import { Backups } from "./Backups";
+import { CheckSheetLink } from "./CheckSheetLink";
 import {
   DataTable,
   Empty,
@@ -79,6 +80,7 @@ export function Settings({
         {error && <ErrorNotice>{error}</ErrorNotice>}
       </Section>
       <Backups />
+      <CheckSheetLink />
       <div className="source-cards">
         {data.sources.map((source) => {
           const status = data.jobs[source.job];
