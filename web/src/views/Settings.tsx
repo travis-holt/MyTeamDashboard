@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ExternalLink, RefreshCw } from "lucide-react";
 import type { Job, SyncRun, SyncStatus } from "../../../server/src/api/dto";
 import { api, message } from "../api";
+import { Backups } from "./Backups";
 import {
   DataTable,
   Empty,
@@ -77,6 +78,7 @@ export function Settings({
         </div>
         {error && <ErrorNotice>{error}</ErrorNotice>}
       </Section>
+      <Backups />
       <div className="source-cards">
         {data.sources.map((source) => {
           const status = data.jobs[source.job];

@@ -19,6 +19,8 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "smoke": "playwright test",
+    "backup": "tsx server/src/cli.ts backup",
+    "restore": "tsx server/src/cli.ts restore",
     "sync": "tsx server/src/cli.ts sync",
     "test-link": "tsx server/src/cli.ts test-link",
     "hash-password": "tsx server/src/cli.ts hash-password"

@@ -1,9 +1,11 @@
 import { config } from "dotenv";
 import { z } from "zod";
 config({ quiet: true });
+const dataDir = z.string().min(1).default("./data");
+export const readDataDir = () => dataDir.parse(process.env.DATA_DIR);
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  DATA_DIR: z.string().min(1).default("./data"),
+  DATA_DIR: dataDir,
   DASHBOARD_PASSWORD_HASH: z
     .string()
     .regex(/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/, "Expected a bcrypt hash"),

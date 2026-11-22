@@ -1,7 +1,9 @@
 import bcrypt from "bcrypt";
 import { existsSync } from "node:fs";
 import { loadConfig } from "./config.js";
-import { readEnv } from "./env.js";
+import { readBackup, writeBackup } from "./backup/files.js";
+import { restoreBackup } from "./backup/data.js";
+import { readDataDir, readEnv } from "./env.js";
 import { openDb } from "./db/db.js";
 import { fetchCsv } from "./fetch/fetchCsv.js";
 import { parseLink, exportUrl } from "./fetch/urls.js";
@@ -67,6 +69,22 @@ try {
           row.map((value) => value && (reveal ? value : "[masked]")),
         ),
     );
+  } else if (process.argv[2] === "backup" || process.argv[2] === "restore") {
+    const command = process.argv[2];
+    const path = process.argv[3];
+    if (command === "restore" && !path)
+      throw new Error("Pass a JSON backup file");
+    const backup = command === "restore" ? readBackup(path) : null;
+    const directory = readDataDir();
+    const db = openDb(directory);
+    try {
+      if (backup) {
+        restoreBackup(db, backup);
+        console.log("Backup restored");
+      } else console.log(writeBackup(db, directory));
+    } finally {
+      db.close();
+    }
   } else if (process.argv[2] === "sync") {
     const job = process.argv[3]?.replace(/^--job=/, "");
     if (job !== "roster" && job !== "daily" && job !== "all")

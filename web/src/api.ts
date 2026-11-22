@@ -13,12 +13,19 @@ export async function api<T>(
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
+  const file = body instanceof Blob ? body : undefined;
   const response = await fetch("/api" + path, {
     method,
     signal,
     headers:
-      body === undefined ? undefined : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+      body === undefined
+        ? undefined
+        : {
+            "Content-Type": file
+              ? "application/octet-stream"
+              : "application/json",
+          },
+    body: body === undefined ? undefined : (file ?? JSON.stringify(body)),
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));

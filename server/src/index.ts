@@ -8,7 +8,8 @@ import { openDb } from "./db/db.js";
 import { auth } from "./auth.js";
 import { createRoutes } from "./api/routes.js";
 import { createSync } from "./sync/service.js";
-import { startCron } from "./sync/cron.js";
+import { backupRoutes } from "./backup/routes.js";
+import { startBackupCron, startCron } from "./sync/cron.js";
 
 export function startServer(now?: () => Date) {
   const env = readEnv();
@@ -49,6 +50,7 @@ export function startServer(now?: () => Date) {
   app.post("/api/login", login.loginLimit, login.login);
   app.use("/api", login.requireSession);
   app.post("/api/logout", login.logout);
+  app.use("/api/backup", backupRoutes(db));
   app.use("/api", createRoutes(db, config, sync));
   app.use(express.static(resolve("web/dist"), { index: false }));
   app.get("*", (req, res) => {
@@ -89,6 +91,7 @@ export function startServer(now?: () => Date) {
   };
   app.use(errors);
   const cron = startCron(config, sync);
+  if (env.DATA_DIR !== ":memory:") cron.push(startBackupCron(db, env.DATA_DIR));
   const server = app.listen(
     env.PORT,
     env.SOURCE_MODE === "fixture" ? "127.0.0.1" : "0.0.0.0",

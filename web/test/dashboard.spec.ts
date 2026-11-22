@@ -7,7 +7,11 @@ test("sign in, review views, add an agent note, and copy the email table", async
   const consoleErrors: string[] = [];
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   page.on("console", (event) => {
-    if (event.type() === "error" && !event.text().includes("401"))
+    if (
+      event.type() === "error" &&
+      !event.text().includes("401") &&
+      !event.text().includes("400")
+    )
       consoleErrors.push(event.text());
   });
   const screenshot = (name: string) =>
@@ -23,6 +27,8 @@ test("sign in, review views, add an agent note, and copy the email table", async
       })
       .click();
   expect((await request.get("/api/agents")).status()).toBe(401);
+  expect((await request.get("/api/backup")).status()).toBe(401);
+  expect((await request.post("/api/backup/restore")).status()).toBe(401);
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Team Dashboard" }),
@@ -112,6 +118,27 @@ test("sign in, review views, add an agent note, and copy the email table", async
       expect(clipboard.plain).toContain(
         "Code\tName\tTeam Leader\tAccount\tDate\tMissing\tTL Comment",
       );
+    }
+    if (view === "Settings") {
+      const download = page.waitForEvent("download");
+      await page.getByRole("link", { name: "Download backup" }).click();
+      const backup = await download;
+      const path = await backup.path();
+      if (!path) throw new Error("Backup download missing");
+      await page.getByLabel("Restore from backup").setInputFiles({
+        name: "invalid.json",
+        mimeType: "application/json",
+        buffer: Buffer.from("{}"),
+      });
+      await page.getByRole("button", { name: "Preview restore" }).click();
+      await expect(page.getByText(/Invalid backup field/)).toBeVisible();
+      await page.getByLabel("Restore from backup").setInputFiles(path);
+      await page.getByRole("button", { name: "Preview restore" }).click();
+      await expect(
+        page.getByText("Notes · 0 added, 0 updated, 0 removed"),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Confirm restore" }).click();
+      await expect(page.getByText("Backup restored.")).toBeVisible();
     }
     await screenshot(view.toLowerCase() + "-light");
     await theme(false);

@@ -54,3 +54,11 @@ npm run build
 ```
 
 Playwright runs against synthetic data and writes light and dark screenshots under `test-results/`. CI runs lint, typechecks and unit tests without fetching live sheets.
+
+## Back up and restore dashboard data
+
+Settings → **Download backup** saves a JSON file with notes, roster history, and discrepancy states and TL comments. The server also writes a nightly backup at 02:00 Africa/Cairo under `DATA_DIR/backups` (on Railway, `/data/backups`). It keeps the 14 most recent dated files. Keep downloaded copies private.
+
+In Settings, choose a JSON file under **Restore from backup** and click **Preview restore**. Review the added, updated, and removed counts, then click **Confirm restore**. Restore replaces notes and roster history in a single transaction. It applies saved states and comments to discrepancies from the file and keeps any newer discrepancies outside the backup. After a new database is seeded, an archived discrepancy can retain its state and comment even if the source text is unavailable. Schedule and attendance remain intact.
+
+On the machine that has the database, run `npm run backup` to save a copy. Run `npm run restore -- /path/to/backup.json` to restore immediately using the same `DATA_DIR` as the running app.
